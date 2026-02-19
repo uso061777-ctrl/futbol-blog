@@ -1,0 +1,50 @@
+name: Actualizar Blog de Fútbol
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install feedparser
+
+      - run: python generar_blog.py
+
+      - name: Publicar cambios
+        run: |
+          git config --global user.name "Bot"
+          git config --global user.email "bot@blog.com"
+          git add docs/
+          git diff --staged --quiet || git commit -m "Blog actualizado"
+          git push
+
+  deploy:
+    needs: generar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+      - uses: actions/deploy-pages@v4
+        id: deployment
